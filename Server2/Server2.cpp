@@ -1,33 +1,14 @@
-#include <iostream>
-#include <fstream>
-#include <boost/asio.hpp>
-#include <filesystem>
-#include <vector>
-#include <cstring> // For memcpy
+#pragma once
+#include "Server.hpp"
+#include "Handle_Files.hpp"
 
-using boost::asio::ip::tcp;
-namespace fs = std::filesystem;
 
-const int PORT = 1234;
-const std::string SERVER_DIRECTORY = "C:\\server";
 
 //checks if the system work in little endian
 bool is_little_endian() {
     uint16_t test = 1;
     return *reinterpret_cast<uint8_t*>(&test) == 1;
 }
-
-struct Protocol {
-    uint32_t user_id;
-    uint8_t version;
-    uint8_t op;
-    uint16_t name_len;
-    std::string file_name;
-    std::vector<char> payload;
-
-public:
-    uint16_t get_name_len() const { return name_len; } //used for debugging
-};
 
 
 //These functions convert little-endian values to the host's native byte order.
@@ -40,60 +21,65 @@ uint16_t le16toh(uint16_t val) {
 }
 
 
-Protocol parse_protocol(boost::asio::streambuf& buffer) {
+Protocol parse_protocol(tcp::socket &socket) {
     Protocol prot;
-    std::istream is(&buffer);
+    boost::asio::streambuf buffer;
 
-    // Read the fixed-size header (8 bytes: 4 + 1 + 1 + 2)
-    char header[8];
-    is.read(header, 8);
+    // Read the fixed-size header (12 bytes: 4 + 1 + 1 + 2 + 4)
+    boost::asio::read(socket, buffer, boost::asio::transfer_exactly(12));
+    std::istream is(&buffer);
+    
+    char header[12];
+    is.read(header, 12);
 
     // Parse the header fields
     memcpy(&prot.user_id, header, 4);
-    if (!is_little_endian)
+    if (!is_little_endian())
         prot.user_id = le32toh(prot.user_id); // Convert from little-endian to host byte order
 
     prot.version = header[4];
     prot.op = header[5];
 
     memcpy(&prot.name_len, header + 6, 2);
-    if(!is_little_endian)
+    if(!is_little_endian())
         prot.name_len = le16toh(prot.name_len); // Convert from little-endian to host byte order
 
+    //read the payload size
+    memcpy(&prot.payload_size, header + 8, 4);
+    if (!is_little_endian())
+        prot.payload_size = le32toh(prot.payload_size);
+
     // Read the file name
-    char file_name[1024] = { 0 };
-    is.read(file_name, prot.name_len);
-    if (is.gcount() != prot.name_len) {
-        throw std::runtime_error("Failed to read file name from buffer.");
-    }
-    prot.file_name = std::string(file_name, prot.name_len);
+    boost::asio::read(socket, buffer, boost::asio::transfer_exactly(prot.name_len));
+    std::vector<char> file_name(prot.name_len);
+    is.read(file_name.data(), prot.name_len);
+    prot.file_name = std::string(file_name.data(), prot.name_len);
+
+    std::cout <<"File name:" << prot.file_name << std::endl;
+
 
     // Read the remaining payload
-    prot.payload.assign(std::istreambuf_iterator<char>(is), std::istreambuf_iterator<char>());
+    /*boost::asio::read(socket, buffer, boost::asio::transfer_exactly(prot.payload_size));
+    prot.payload.resize(prot.payload_size);
+    is.read(prot.payload.data(), prot.payload_size);*/
+    
 
     return prot;
 }
 
 
-void handle_protocol(const Protocol& prot) {
-    if (prot.op == 200) {
-        // Create a directory for the user ID
-        std::string user_dir = SERVER_DIRECTORY + "\\" + std::to_string(prot.user_id);
-        if (!fs::exists(user_dir)) {
-            fs::create_directory(user_dir);
-        }
+void handle_protocol(tcp::socket &socket, const Protocol& prot) {
+    std::string user_dir = SERVER_DIRECTORY + "\\" + std::to_string(prot.user_id);
+    // Create a directory for the user ID
+    if (!fs::exists(user_dir)) {
+        fs::create_directory(user_dir);
+    }
 
-        // Save the file in the user directory
-        std::string full_file_path = user_dir + "\\" + prot.file_name;
-        std::ofstream output_file(full_file_path, std::ios::binary);
-        if (output_file.is_open()) {
-            output_file.write(prot.payload.data(), prot.payload.size());
-            output_file.close();
-            std::cout << "File saved to: " << full_file_path << std::endl;
-        }
-        else {
-            std::cerr << "Failed to create file: " << full_file_path << std::endl;
-        }
+    if (prot.op == 100) {
+        save_file(socket, prot.file_name, user_dir, prot.payload_size);
+    }
+    else if (prot.op == 200) {
+        send_file(socket, prot.file_name, user_dir);
     }
     else {
         std::cerr << "Unknown operation: " << prot.op << std::endl;
@@ -116,11 +102,11 @@ int main() {
         acceptor.accept(socket);
         std::cout << "Client connected!" << std::endl;
 
-        boost::asio::streambuf buffer;
-        boost::asio::read_until(socket, buffer, '\0'); // Read until EOF or close
+        //boost::asio::streambuf buffer;
+        //boost::asio::read_until(socket, buffer, '\0'); // Read until EOF or close
 
-        Protocol prot = parse_protocol(buffer);
-        handle_protocol(prot);
+        Protocol prot = parse_protocol(socket);
+        handle_protocol(socket, prot);
     }
     catch (std::exception& e) {
         std::cerr << "Exception: " << e.what() << std::endl;
