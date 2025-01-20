@@ -1,0 +1,13 @@
+The exit status code '1' says something went wrong:
+stderr: "Loading pages (1/6)
+[>                                                           ] 0%[======>                                                     ] 10%[==========>                                                 ] 18%[============>                                               ] 21%[=================>                                          ] 29%[=====================>                                      ] 35%Error: Failed to load https://friends.smarticket.co.il/api/barcode1D/.AqiYR1Lhns.png, with network status code 202 and http status code 403 - Error downloading https://friends.smarticket.co.il/api/barcode1D/.AqiYR1Lhns.png - server replied: Forbidden
+Error: Failed to load https://friends.smarticket.co.il/api/barcode/.AqiYR1Lhns?size=5&margin=1, with network status code 202 and http status code 403 - Error downloading https://friends.smarticket.co.il/api/barcode/.AqiYR1Lhns?size=5&margin=1 - server replied: Forbidden
+[============================================================] 100%Counting pages (2/6)                                               
+[============================================================] Object 1 of 1Resolving links (4/6)                                                       
+[============================================================] Object 1 of 1Loading headers and footers (5/6)                                           
+Printing pages (6/6)
+[>                                                           ] Preparing[============================================================] Page 1 of 1Done                                                                      
+Exit with code 1 due to network error: ContentOperationNotPermittedError
+"
+stdout: ""
+command: /usr/local/bin/wkhtmltopdf --lowquality --margin-left '10' --margin-right '10' --page-size 'A4' --title 'SmarTicket' --encoding 'utf-8' '/tmp/knp_snappy678c93f2ac1196.79910230.html' '/tmp/knp_snappy678c93f2ac1e23.30618779.pdf'.

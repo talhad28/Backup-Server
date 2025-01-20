@@ -24,7 +24,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Client.py" />
-    <Compile Include="request_protocol.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="Global|PythonCore|3.9" />
