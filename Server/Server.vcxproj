@@ -140,7 +140,6 @@
   <ItemGroup>
     <ClInclude Include="Handle_Files.hpp" />
     <ClInclude Include="Protocol.hpp" />
-    <ClInclude Include="Server.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

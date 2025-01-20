@@ -40,9 +40,9 @@ void File_transfer::send_file(tcp::socket& socket, const std::string& user_dir, 
             } 
             //file size to big so we need to send it in chunks
             else {
-                std::vector<uint8_t> buffer(file_size);
-                prot.payload.payload.resize(PACKET_SIZE - file_name.length() - 9);
-                file.read(reinterpret_cast<char*>(prot.payload.payload.data()), PACKET_SIZE - file_name.length() - 9);
+                std::vector<uint8_t> buffer(PACKET_SIZE - file_name.length() - 9);
+                file.read(reinterpret_cast<char*>(buffer.data()), PACKET_SIZE - file_name.length() - 9);
+                prot.payload.payload = buffer;
                 std::vector<uint8_t> packet = prot.serialize();
                 uint64_t packet_size = packet.size();
                 boost::asio::write(socket, boost::asio::buffer(&packet_size, sizeof(packet_size)));

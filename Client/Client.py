@@ -235,7 +235,6 @@ def get_backup_info():
 
 if __name__ == "__main__":
     user_ID = random.randint(1000, 9999)
-    user_ID = 1232
     VERSION = 1
     host, port = get_srv_info()
     backup_info = get_backup_info()
