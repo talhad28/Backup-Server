@@ -27,9 +27,9 @@ void File_transfer::send_file(tcp::socket& socket, const std::string& user_dir, 
             prot.payload.payload_size = static_cast<uint32_t>(file_size);
             prot.file_name = file_name;
             prot.name_len = static_cast<uint16_t>(file_name.length());
+
             //check if we can send all in one package. only if the file file_size(4)+version(1)+status(2)+name_len(2)+file_name(name_len)+file <= 1MB.
             if (file_size < PACKET_SIZE - file_name.length() - 9) { 
-                prot.payload.payload.resize(file_size);
                 std::vector<uint8_t> buffer(file_size);
                 file.read(reinterpret_cast<char*>(buffer.data()),file_size);
                 prot.payload.payload = buffer;
@@ -38,6 +38,7 @@ void File_transfer::send_file(tcp::socket& socket, const std::string& user_dir, 
                 boost::asio::write(socket, boost::asio::buffer(&packet_size, sizeof(packet_size)));
                 boost::asio::write(socket, boost::asio::buffer(packet, packet_size));
             } 
+
             //file size to big so we need to send it in chunks
             else {
                 std::vector<uint8_t> buffer(PACKET_SIZE - file_name.length() - 9);

@@ -114,6 +114,18 @@ def parse_protocol(packet):
     prot.deserialize(packet)
     return prot
 
+#checks that the entire data was read from the socket
+def receive_exact(socket, size):
+    data = b''
+    remaining = size
+    while remaining > 0:
+        chunk = socket.recv(remaining)
+        if not chunk:  # Connection closed prematurely
+            raise ConnectionError("Connection closed before receiving all data")
+        data += chunk
+        remaining -= len(chunk)
+    return data
+
 def send_file_in_chunks(sock, file, file_size):
     bytes_sent = 0
     while bytes_sent < file_size:
@@ -124,7 +136,7 @@ def send_file_in_chunks(sock, file, file_size):
         bytes_sent += len(chunk)
         print(f"Sent {bytes_sent}/{file_size} bytes")
 
-def backup_request(file, host, port):
+def backup_request(user_ID, file, host, port):
     with socket.create_connection((host,port)) as sock:
         prot = Client_Protocol(user_ID, VERSION)
         prot.set_op(OP.FILE_BACKUP.value)  # Set the operation code for backup
@@ -149,7 +161,7 @@ def backup_request(file, host, port):
             print("Backup failed: General error")
         sock.sendall(OK_MSG)
 
-def restore_request(file, host, port):
+def restore_request(user_ID, file, host, port):
     with socket.create_connection((host,port)) as sock:
         prot = Client_Protocol(user_ID, VERSION)
         prot.set_op(OP.FILE_RESTORE.value)
@@ -157,7 +169,8 @@ def restore_request(file, host, port):
         sock.sendall(prot.serialize())
         response_size = sock.recv(8)
         total_size = int.from_bytes(response_size, 'little')
-        response = sock.recv(total_size)
+        response = receive_exact(sock, total_size)
+        #response = sock.recv(total_size)
         server_prot = parse_protocol(response)
         if server_prot.status == Status.FILE_RESTORE_OK.value:
             with open(file, "wb") as output_file:
@@ -167,7 +180,8 @@ def restore_request(file, host, port):
                 if server_prot.payload.size > PACKET_SIZE - server_prot.name_len - 9:
                     total_bytes_recived = PACKET_SIZE - server_prot.name_len - 9 # what that was sent in the first packet
                     while total_bytes_recived < server_prot.payload.size:
-                        data = sock.recv(min(PACKET_SIZE, server_prot.payload.size - total_bytes_recived))
+                        #data = sock.recv(min(PACKET_SIZE, server_prot.payload.size - total_bytes_recived))
+                        data = receive_exact(sock, min(PACKET_SIZE, server_prot.payload.size - total_bytes_recived))
                         if not data:
                             break
                         output_file.write(data)
@@ -182,7 +196,7 @@ def restore_request(file, host, port):
             print("File restoration failed: General error")
         sock.sendall(OK_MSG)
    
-def lst_request(host, port):
+def lst_request(user_ID, host, port):
     with socket.create_connection((host,port)) as sock:
         prot = Client_Protocol(user_ID, VERSION)
         prot.set_op(OP.FILE_DIR.value)
@@ -204,7 +218,7 @@ def lst_request(host, port):
         # Send acknowledgment after receiving the data
         sock.sendall(OK_MSG)
 
-def del_request(file, host, port):
+def del_request(user_ID, file, host, port):
     with socket.create_connection((host,port)) as sock:
         prot = Client_Protocol(user_ID, VERSION)
         prot.set_op(OP.FILE_DELETE.value)
@@ -238,13 +252,13 @@ if __name__ == "__main__":
     VERSION = 1
     host, port = get_srv_info()
     backup_info = get_backup_info()
-    lst_request(host, port)
-    backup_request(backup_info[0], host, port)
-    backup_request(backup_info[1], host, port)
-    restore_request(backup_info[0], host, port)
-    restore_request(backup_info[1], host, port)
-    del_request(backup_info[0], host, port)
-    del_request(backup_info[1], host, port)
+    lst_request(user_ID, host, port)
+    backup_request(user_ID, backup_info[0], host, port)
+    backup_request(user_ID, backup_info[1], host, port)
+    restore_request(user_ID, backup_info[0], host, port)
+    restore_request(user_ID, backup_info[1], host, port)
+    del_request(user_ID, backup_info[0], host, port)
+    del_request(user_ID, backup_info[1], host, port)
     
 
     

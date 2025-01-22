@@ -45,34 +45,36 @@ Client_Protocol parse_client_protocol(tcp::socket& socket) {
 }
 
 std::vector<uint8_t> Server_Protocol::serialize() {
-    std::vector<uint8_t> buffer;
+    std::vector<uint8_t> packet;
 
-    // Version and status (1 byte each)
-    buffer.push_back(version);
-    uint16_t status_le = htole16(status);
-    size_t current_pos = buffer.size();
-    buffer.resize(buffer.size() + sizeof(uint16_t));
-    memcpy(&buffer[buffer.size() - sizeof(uint16_t)], &status_le, sizeof(uint16_t));
+    // Version 
+    packet.push_back(version);
+
+    //status (2 byte)  - convert to little endian
+    uint16_t status_le = is_little_endian() ? status : htole16(status);
+    size_t current_pos = packet.size();
+    packet.resize(packet.size() + sizeof(uint16_t));
+    memcpy(&packet[packet.size() - sizeof(uint16_t)], &status_le, sizeof(uint16_t));
 
     // Name length (2 bytes) - convert to little endian
-    uint16_t name_len_le = htole16(name_len);
-    buffer.resize(buffer.size() + sizeof(uint16_t));
-    current_pos = buffer.size();
-    memcpy(&buffer[buffer.size() - sizeof(uint16_t)], &name_len_le, sizeof(uint16_t));
+    uint16_t name_len_le = is_little_endian()? name_len : htole16(name_len);
+    packet.resize(packet.size() + sizeof(uint16_t));
+    current_pos = packet.size();
+    memcpy(&packet[packet.size() - sizeof(uint16_t)], &name_len_le, sizeof(uint16_t));
 
     // File name
-    buffer.insert(buffer.end(), file_name.begin(), file_name.end());
+    packet.insert(packet.end(), file_name.begin(), file_name.end());
 
     // Payload size (4 bytes) - convert to little endian
     uint32_t size_le = is_little_endian() ? payload.payload_size : htole32(payload.payload_size);
-    current_pos = buffer.size();
-    buffer.resize(buffer.size() + sizeof(uint32_t));
-    memcpy(&buffer[buffer.size() - sizeof(uint32_t)], &size_le, sizeof(uint32_t));
+    current_pos = packet.size();
+    packet.resize(packet.size() + sizeof(uint32_t));
+    memcpy(&packet[packet.size() - sizeof(uint32_t)], &size_le, sizeof(uint32_t));
 
     // Payload data
-    buffer.insert(buffer.end(), payload.payload.begin(), payload.payload.end());
+    packet.insert(packet.end(), payload.payload.begin(), payload.payload.end());
 
-    return buffer;
+    return packet;
 }
 
 void Server_Protocol::set_payload(std::string files) {
