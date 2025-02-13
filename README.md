@@ -5,3 +5,5 @@ A simple file backup client-server program. (Maman14, 2025a, Defensive Systems P
 Server written with boost & C++17.
 
 Client written with python3.9.
+
+Grade: 95
